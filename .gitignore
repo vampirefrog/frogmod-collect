@@ -17,3 +17,8 @@ enet/.deps
 enet/.libs
 sauer_server
 server-init.cfg
+enet/Makefile
+enet/config.log
+enet/config.status
+enet/libenet.pc
+enet/libtool
