@@ -367,6 +367,7 @@ vector<char> masterout, masterin;
 int masteroutpos = 0, masterinpos = 0;
 VARN(updatemaster, allowupdatemaster, 0, 1, 1);
 VAR(rconport, 0, 0, 65535); // Remote console (HTTP)
+SVAR(rconip, ""); // Remote console bind address
 
 void disconnectmaster()
 {
@@ -1092,7 +1093,12 @@ bool setuplistenserver(bool dedicated)
     else enet_socket_set_option(lansock, ENET_SOCKOPT_NONBLOCK, 1);
     if(rconport > 0) {
         address.port = rconport;
-        conoutf("Starting remote console on port %d\n", rconport);
+        if(*rconip) {
+            if(enet_address_set_host(&address, rconip) < 0)
+                conoutf(CON_WARN, "WARNING: rcon ip not resolved");
+            else conoutf("Binding remote console on %s", rconip);
+        }
+        conoutf("Starting remote console on port %d", rconport);
         http = new httpserver(address);
         http->set_cb("/", rconcb);
         http->conn_lost_cb = rcon_conn_lost_cb;

@@ -93,4 +93,10 @@ teamkillkick "?capture" 10 30
 
 // remote console port. It's a HTTP socket which can be used to control the server and for live logging.
 // its main use is for a node.js script
-//rconport 8888
+// it might be a good idea to not open this port on your firewall
+//rconport 28888
+
+// remote console bind IP
+// if not set, defaults to serverip
+// it might be a good idea to set it to "localhost" or "127.0.0.1"
+//rconip "127.0.0.1"
