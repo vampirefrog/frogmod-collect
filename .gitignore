@@ -11,3 +11,8 @@
 *.lai
 *.la
 *.a
+
+
+enet/.deps
+enet/.libs
+sauer_server
