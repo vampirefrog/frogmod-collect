@@ -16,3 +16,4 @@
 enet/.deps
 enet/.libs
 sauer_server
+server-init.cfg
