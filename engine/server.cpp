@@ -1058,7 +1058,7 @@ bool servererror(bool dedicated, const char *desc)
     }
     else
 #endif
-        fatal(desc);
+        fatal("%s", desc);
     return false;
 }
 
