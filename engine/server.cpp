@@ -373,6 +373,7 @@ int masteroutpos = 0, masterinpos = 0;
 VARN(updatemaster, allowupdatemaster, 0, 1, 1);
 VAR(rconport, 0, 0, 65535); // Remote console (HTTP)
 SVAR(rconip, ""); // Remote console bind address
+bool rconecho = true; // whether logoutfv outputs on rcon as well
 
 void disconnectmaster()
 {
@@ -522,6 +523,21 @@ void sendserverinforeply(ucharbuf &p)
     enet_socket_send(pongsock, &pongaddr, &buf, 1);
 }
 
+ICOMMAND(say, "C", (const char *s), {
+    if(s && *s) logoutf("%s", s);
+});
+
+void gamesay(char *s) {
+    if(!s || !*s) return;
+    server::sendservmsg((char *)s);
+    rconecho = false;
+    string fs;
+    filtertext(fs, s);
+    logoutf("%s", fs);
+    rconecho = true;
+}
+COMMAND(gamesay, "C");
+
 #include "http.h"
 httpserver *http;
 vector<httprequest *>rconreqs;
@@ -530,6 +546,9 @@ void rconcb(httprequest *req, void *data) {
 //    enet_address_get_host_ip(&req->addr, ipstr, sizeof(ipstr));
 //    conoutf("%s %s %s (size=%d)", ipstr, req->method.data, req->path.data, rconreqs.length());
     if(!strcmp((char *)req->method, "POST")) {
+        int len = strlen((char *)req->req_content);
+        len = decodeutf8((uchar *)req->req_content.data, len, (const uchar *)req->req_content.data, len, NULL);
+        ((char *)req->req_content)[len] = 0;
         char *ret = executestr((char *)req->req_content);
         if(ret) req->content.put(ret);
         req->end();
@@ -547,15 +566,19 @@ void rcon_conn_lost_cb(httprequest *req) {
 
 void rconlog(const char *buf, int len = -1) {
     if(len < 0) len = strlen(buf);
+    uchar ubuf[MAXSTRLEN*2];
+    int carry;
+    int numu = encodeutf8(ubuf, sizeof(ubuf)-1, (const uchar *)buf, len, &carry);
+    ubuf[numu] = 0;
     loopv(rconreqs) {
-        rconreqs[i]->content.put(buf, len);
+        rconreqs[i]->content.put((char *)ubuf, len);
         rconreqs[i]->end();
     }
     rconreqs.shrink(0);
 }
-void rconlogfv(const char *fmt, va_list ap) {
+void rconlogfv(const char *fmt, va_list args) {
     string s;
-    vformatstring(s, fmt, ap);
+    vformatstring(s, fmt, args);
     rconlog(s);
 }
 
@@ -1002,7 +1025,12 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR szCmdLine, int sw)
 
 void logoutfv(const char *fmt, va_list args)
 {
-    if(rconport && http) rconlogfv(fmt, args);
+    if(rconport && http && rconecho) {
+        va_list rcon_args;
+        va_copy(rcon_args, args);
+        rconlogfv(fmt, rcon_args);
+    }
+
     if(appwindow)
     {
         logline &line = loglines.add();
@@ -1020,9 +1048,14 @@ void logoutfv(const char *fmt, va_list args)
 
 void logoutfv(const char *fmt, va_list args)
 {
+    if(rconport && http && rconecho) {
+        va_list rcon_args;
+        va_copy(rcon_args, args);
+        rconlogfv(fmt, rcon_args);
+    }
+
     FILE *f = getlogfile();
     if(f) writelogv(f, fmt, args);
-    if(rconport && http) rconlogfv(fmt, args);
 }
 
 #endif
