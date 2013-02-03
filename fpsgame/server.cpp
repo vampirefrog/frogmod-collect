@@ -3563,5 +3563,5 @@ namespace server
     }
 
     #include "aiman.h"
+    #include "frog.h"
 }
-
