@@ -2483,6 +2483,7 @@ namespace server
         loopv(clients) if(clients[i]->authkickvictim == ci->clientnum) clients[i]->cleanauth();
         if(ci->connected)
         {
+            conoutf("leave: %s (%d/%s)", ci->name, ci->clientnum, getclienthostname(ci->clientnum));
             if(ci->privilege) setmaster(ci, false);
             if(smode) smode->leavegame(ci, true);
             ci->state.timeplayed += lastmillis - ci->state.lasttimeplayed;
@@ -2744,6 +2745,8 @@ namespace server
         if(m_demo) setupdemoplayback();
 
         if(servermotd[0]) sendf(ci->clientnum, 1, "ris", N_SERVMSG, servermotd);
+
+        if(isdedicatedserver()) conoutf("join: %s (%d/%s)", ci->name, ci->clientnum, getclienthostname(ci->clientnum));
     }
 
     void parsepacket(int sender, int chan, packetbuf &p)     // has to parse exactly each byte of the packet
