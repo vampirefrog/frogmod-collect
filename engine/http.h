@@ -198,6 +198,7 @@ struct httprequest {
 				}
 			} else { // connection lost
 				// TODO: clean up connection?
+				enet_socket_destroy(sock);
 				return HTTPREQ_DISCONNECTED;
 			}
 			if((unsigned int)r < sizeof(data)) break;
@@ -392,6 +393,7 @@ struct httprequest {
 		buf.dataLength = r.length();
 		enet_socket_send(sock, NULL, &buf, 1);
 		reset();
+		state = AFTER_RESPONSE;
 	}
 };
 
