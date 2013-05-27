@@ -572,7 +572,7 @@ void rconlog(const char *buf, int len = -1) {
     int numu = encodeutf8(ubuf, sizeof(ubuf)-1, (const uchar *)buf, len, &carry);
     ubuf[numu] = 0;
     loopv(rconreqs) {
-        rconreqs[i]->content.put((char *)ubuf, len);
+        rconreqs[i]->content.put((char *)ubuf, numu);
         rconreqs[i]->end();
     }
     rconreqs.shrink(0);

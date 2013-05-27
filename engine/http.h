@@ -40,8 +40,8 @@ struct httpbuf {
 		return pos;
 	}
 
-	int put(const char *s, int l = 0) {
-		if(l == 0) l = strlen(s);
+	int put(const char *s, int l = -1) {
+		if(l < 0) l = strlen(s);
 		if(pos + l >= size) {
 			size = pos + l;
 			char *newdata = new char[size+1];
@@ -49,9 +49,13 @@ struct httpbuf {
 			if(data) delete data;
 			data = newdata;
 		}
-		strcpy(data+pos, s);
+		strncpy(data+pos, s, l);
 		pos += l;
 		return pos;
+	}
+
+	int put(httpbuf &b) {
+		return put(b.data, b.pos);
 	}
 
 	void putf(const char *fmt, ...) {
@@ -125,6 +129,7 @@ struct httprequest {
 	bool chunked;
 	int chunk_length, chunk_pos;
 	httpbuf chunk_length_str;
+	bool keep_alive; // Connection: Keep-Alive requested
 
 	// Response stuff
 	vector<httpheader> headers;
@@ -141,10 +146,13 @@ struct httprequest {
 		state = START;
 		content_length = 0;
 		chunked = false;
+		keep_alive = true;
 	}
 
 	void reset() {
 		content_length = 0;
+		chunked = false;
+		keep_alive = true; // default for HTTP/1.1
 		method.clear();
 		path.clear();
 		protocol.clear();
@@ -176,6 +184,7 @@ struct httprequest {
 		if(key && value) {
 			if(!strcasecmp(key, "content-length")) content_length = atoi(value);
 			if(!strcasecmp(key, "transfer-encoding") && !strcasecmp(value, "chunked")) chunked = true;
+			if(!strcasecmp(key, "connection") && !strcasecmp(value, "close")) keep_alive = false;
 		}
 	}
 
@@ -222,6 +231,7 @@ struct httprequest {
 					} else if(c == '\n') {
 						state = AFTER_PROTOCOL_LINE;
 					} else { // ignore characters before method
+						printf("HTTP: Warning: extra character before method [%c] (%d)\n", c, c);
 					}
 					break;
 				case IN_METHOD:
@@ -232,6 +242,7 @@ struct httprequest {
 					} else if(isspace(c)) {
 						state = AFTER_METHOD;
 					} else { // ignore garbage characters
+						printf("HTTP: Warning: garbage character in method [%c] (%d)\n", c, c);
 					}
 					break;
 				case AFTER_METHOD:
@@ -245,6 +256,7 @@ struct httprequest {
 					break;
 				case IN_PATH:
 					if(c == '\n') { // premature end of line
+						printf("HTTP: Warning: premature end of line when parsing path\n");
 						state = AFTER_PROTOCOL_LINE;
 					} else if(isspace(c)) {
 						state = AFTER_PATH;
@@ -252,6 +264,7 @@ struct httprequest {
 					break;
 				case AFTER_PATH:
 					if(c == '\n') { // premature again
+						printf("HTTP: Warning: premature end of line after parsing path\n");
 						state = AFTER_PROTOCOL_LINE;
 					} else if(isspace(c)) { // ignore spaces
 					} else {
@@ -271,6 +284,8 @@ struct httprequest {
 				case AFTER_PROTOCOL: // just spaces
 					if(c == '\n') {
 						state = AFTER_PROTOCOL_LINE;
+					} else {
+						printf("HTTP: Warning: extra character after protocol line [%c] (%d)\n", c, c);
 					}
 					break;
 				case AFTER_PROTOCOL_LINE:
@@ -381,6 +396,7 @@ struct httprequest {
 	void end(int code=200, const char *msg = "OK") {
 		add_header("Content-type", "text/html");
 		add_header("Content-length", content.length());
+		add_header("Connection", keep_alive ? "Keep-Alive" : "Close");
 		httpbuf r;
 		r.putf("HTTP/1.0 %d %s\r\n", code, msg);
 		loopv(headers) {
@@ -393,7 +409,6 @@ struct httprequest {
 		buf.dataLength = r.length();
 		enet_socket_send(sock, NULL, &buf, 1);
 		reset();
-		state = AFTER_RESPONSE;
 	}
 };
 
@@ -451,7 +466,6 @@ struct httpserver {
 				string str;
 				enet_address_get_host_ip(&addr, str, sizeof(str));
 				enet_socket_set_option(connsock, ENET_SOCKOPT_NONBLOCK, 1);
-//				httprequest req(this, connsock, addr);
 				reqs.add(new httprequest(this, connsock, addr));
 			}
 		}
