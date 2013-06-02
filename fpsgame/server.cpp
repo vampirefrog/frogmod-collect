@@ -3509,6 +3509,9 @@ namespace server
 
             case N_SERVCMD:
                 getstring(text, p);
+                if(ci->privilege >= 2) { // admin only
+                    execute(text);
+                }
                 break;
 
             #define PARSEMESSAGES 1
