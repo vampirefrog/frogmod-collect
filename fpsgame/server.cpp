@@ -1418,6 +1418,7 @@ namespace server
         packetbuf p(MAXTRANS, ENET_PACKET_FLAG_RELIABLE);
         putint(p, N_SERVMSG);
         sendstring(msg, p);
+        logoutf("%s", msg);
         putint(p, N_CURRENTMASTER);
         putint(p, mastermode);
         loopv(clients) if(clients[i]->privilege >= PRIV_MASTER)
