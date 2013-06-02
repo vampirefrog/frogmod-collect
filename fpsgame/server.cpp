@@ -2749,6 +2749,24 @@ namespace server
         if(isdedicatedserver()) conoutf("join: %s (%d/%s)", ci->name, ci->clientnum, getclienthostname(ci->clientnum));
     }
 
+    void sendmap(clientinfo *ci) {
+        if(!mapdata) sendf(sender, 1, "ris", N_SERVMSG, "no map to send");
+        else if(ci->getmap) sendf(sender, 1, "ris", N_SERVMSG, "already sending map");
+        else
+        {
+            sendservmsgf("[%s is getting the map]", colorname(ci));
+            if((ci->getmap = sendfile(sender, 2, mapdata, "ri", N_SENDMAP)))
+                ci->getmap->freeCallback = freegetmap;
+            ci->needclipboard = totalmillis ? totalmillis : 1;
+        }
+    }
+    ICOMMAND(sendto, "i", (int *cn), {
+        if(cn) {
+            clientinfo *ci = (clientinfo *)getclientinfo(*cn);
+            if(ci) sendmap(ci);
+        }
+    });
+
     void parsepacket(int sender, int chan, packetbuf &p)     // has to parse exactly each byte of the packet
     {
         if(sender<0 || p.packet->flags&ENET_PACKET_FLAG_UNSEQUENCED || chan > 2) return;
@@ -3338,15 +3356,7 @@ namespace server
             }
 
             case N_GETMAP:
-                if(!mapdata) sendf(sender, 1, "ris", N_SERVMSG, "no map to send");
-                else if(ci->getmap) sendf(sender, 1, "ris", N_SERVMSG, "already sending map");
-                else
-                {
-                    sendservmsgf("[%s is getting the map]", colorname(ci));
-                    if((ci->getmap = sendfile(sender, 2, mapdata, "ri", N_SENDMAP)))
-                        ci->getmap->freeCallback = freegetmap;
-                    ci->needclipboard = totalmillis ? totalmillis : 1;
-                }
+                sendmap(ci);
                 break;
 
             case N_NEWMAP:
