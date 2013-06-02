@@ -749,11 +749,14 @@ namespace server
         }
     }
 
-    void sendservmsg(const char *s) { sendf(-1, 1, "ris", N_SERVMSG, s); }
+    void sendservmsg(const char *s) {
+        logoutf("%s", s);
+        sendf(-1, 1, "ris", N_SERVMSG, s);
+    }
     void sendservmsgf(const char *fmt, ...)
     {
          defvformatstring(s, fmt, fmt);
-         sendf(-1, 1, "ris", N_SERVMSG, s);
+         sendservmsg(s);
     }
 
     void resetitems()
@@ -2749,13 +2752,13 @@ namespace server
         if(isdedicatedserver()) conoutf("join: %s (%d/%s)", ci->name, ci->clientnum, getclienthostname(ci->clientnum));
     }
 
-    void sendmap(clientinfo *ci) {
-        if(!mapdata) sendf(sender, 1, "ris", N_SERVMSG, "no map to send");
-        else if(ci->getmap) sendf(sender, 1, "ris", N_SERVMSG, "already sending map");
+    void sendmap(clientinfo *ci, int sender=-1) {
+        if(!mapdata) { if(sender >= 0) sendf(sender, 1, "ris", N_SERVMSG, "no map to send"); }
+        else if(ci->getmap) { if(sender >= 0) sendf(sender, 1, "ris", N_SERVMSG, "already sending map"); }
         else
         {
             sendservmsgf("[%s is getting the map]", colorname(ci));
-            if((ci->getmap = sendfile(sender, 2, mapdata, "ri", N_SENDMAP)))
+            if((ci->getmap = sendfile(ci->clientnum, 2, mapdata, "ri", N_SENDMAP)))
                 ci->getmap->freeCallback = freegetmap;
             ci->needclipboard = totalmillis ? totalmillis : 1;
         }
@@ -3356,7 +3359,7 @@ namespace server
             }
 
             case N_GETMAP:
-                sendmap(ci);
+                sendmap(ci, sender);
                 break;
 
             case N_NEWMAP:
