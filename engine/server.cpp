@@ -530,11 +530,8 @@ ICOMMAND(say, "C", (const char *s), {
 
 void gamesay(char *s) {
     if(!s || !*s) return;
-    server::sendservmsg((char *)s);
     rconecho = false;
-    string fs;
-    filtertext(fs, s);
-    logoutf("%s", fs);
+    server::sendservmsg((char *)s);
     rconecho = true;
 }
 COMMAND(gamesay, "C");
